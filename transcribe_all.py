@@ -60,7 +60,7 @@ def process_audio_files(folder_path, new_folder):
 
         # Write the transcript to a text file in the new folder
         transcript_file_path = new_folder_path / (audio_path.stem + "_transcription.txt")
-        with open(transcript_file_path, "w") as transcript_file:
+        with open(transcript_file_path, "w", encoding="utf-8") as transcript_file:
             transcript_file.write(transcription_fw)
 
         transcript_json_path = new_folder_path / (audio_path.stem + "_segments_data.json")
