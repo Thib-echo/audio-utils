@@ -43,6 +43,15 @@ def process_audio_files(folder_path, new_folder):
     total_audio_duration = 0
 
     for audio_path in folder_path.glob('*.mp3'):  # Repeat for other formats as needed
+
+        # Create a new folder for the audio and its transcript
+        try:
+            new_folder_path = new_folder / audio_path.stem
+            new_folder_path.mkdir()
+        except FileExistsError as e:
+            print("Folder found, no processing needed, continuing ...")
+            continue
+        
         print(f"Processing {audio_path}")
         audio_duration = get_audio_duration_from_metadata(audio_path)
         total_audio_duration += audio_duration
@@ -51,9 +60,6 @@ def process_audio_files(folder_path, new_folder):
         faster_whisper = FasterWhisperTranscription(str(audio_path), "large-v3")
         transcription_fw, segments_data, _ = transcribe_and_time(faster_whisper, audio_duration)
 
-        # Create a new folder for the audio and its transcript
-        new_folder_path = new_folder / audio_path.stem
-        new_folder_path.mkdir(exist_ok=True)
 
         # Move the audio file to the new folder
         shutil.copy(str(audio_path), str(new_folder_path / audio_path.name))
