@@ -42,7 +42,7 @@ def process_audio_files(folder_path, new_folder):
     new_folder = Path(new_folder)
     total_audio_duration = 0
 
-    for audio_path in folder_path.rglob('*.mp3'):  # Repeat for other formats as needed
+    for audio_path in folder_path.glob('*.mp3'):  # Repeat for other formats as needed
         print(f"Processing {audio_path}")
         audio_duration = get_audio_duration_from_metadata(audio_path)
         total_audio_duration += audio_duration
