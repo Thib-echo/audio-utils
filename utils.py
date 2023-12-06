@@ -2,7 +2,9 @@ from datetime import datetime
 import numpy as np
 from mutagen import File
 from mutagen.id3 import ID3, TIT2
+import soundfile as sf
 import librosa
+import logging
 
 def parse_timestamp_from_title(title):
     try:
@@ -22,10 +24,18 @@ def check_words_in_transcription(transcription_path, words):
         return []
     
 
-def load_audio(file_path):
-    """ Load an audio file """
-    audio, sr = librosa.load(file_path, sr=None)
-    return audio, sr
+def load_audio(file_path, **kwargs):
+    try:
+        return librosa.load(file_path, **kwargs)
+    except Exception as e:
+        logging.error(f"Error loading audio file {file_path}: {e}")
+        return None, None
+    
+def save_audio_segment(segment_file_path, audio_segment, sr):
+    try:
+        sf.write(segment_file_path, audio_segment, sr)
+    except Exception as e:
+        logging.error(f"Error saving audio segment to {segment_file_path}: {e}")
 
 def copy_metadata(src_file, dst_file, new_title=None):
     """ Copy metadata from src_file to dst_file """
