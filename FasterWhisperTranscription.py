@@ -6,7 +6,7 @@ class FasterWhisperTranscription:
     @classmethod
     def load_model(cls, model_size):
         if cls.model is None:
-            cls.model = WhisperModel(model_size, device="cuda", compute_type="int8")
+            cls.model = WhisperModel(model_size, device="cuda", compute_type="int8") # compute_type="float16" if GPU can handle it
 
     def __init__(self, audio_path, model_size):
         self.audio_path = audio_path
