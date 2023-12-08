@@ -70,7 +70,7 @@ def process_audio_files(folder_path, new_folder):
             transcript_file.write(transcription_fw)
 
         transcript_json_path = new_folder_path / (audio_path.stem + "_segments_data.json")
-        with open(transcript_json_path, "w") as transcript_json:
+        with open(transcript_json_path, "w", encoding="utf-8") as transcript_json:
             json.dump(segments_data, transcript_json, indent=4, ensure_ascii=False)
 
         print(f"Processed and moved {audio_path.name}")
