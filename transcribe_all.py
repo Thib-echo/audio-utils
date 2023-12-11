@@ -47,7 +47,7 @@ def process_audio_files(folder_path, new_folder):
         # Create a new folder for the audio and its transcript
         try:
             new_folder_path = new_folder / audio_path.stem
-            new_folder_path.mkdir()
+            new_folder_path.mkdir(parents=True)
         except FileExistsError as e:
             print("Folder found, no processing needed, continuing ...")
             continue
@@ -62,7 +62,10 @@ def process_audio_files(folder_path, new_folder):
 
 
         # Move the audio file to the new folder
-        shutil.copy(str(audio_path), str(new_folder_path / audio_path.name))
+        if args.move:
+            shutil.move(str(audio_path), str(new_folder_path / audio_path.name))
+        else:
+            shutil.copy(str(audio_path), str(new_folder_path / audio_path.name))
 
         # Write the transcript to a text file in the new folder
         transcript_file_path = new_folder_path / (audio_path.stem + "_transcription.txt")
@@ -82,6 +85,7 @@ def process_audio_files(folder_path, new_folder):
 parser = argparse.ArgumentParser(description="Process audio files in a specified folder.")
 parser.add_argument("--source_folder", type=str, help="Path to the folder containing audio files")
 parser.add_argument("--dest_folder", type=str, help="Path to the folder where audio files will be saved along their transcription")
+parser.add_argument("--move", action="store_true" , default=False, help="Move original mp3 file instead of copying it")
 args = parser.parse_args()
 
 start_time = time.time()
