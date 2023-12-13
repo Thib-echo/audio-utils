@@ -3,8 +3,39 @@ import numpy as np
 from mutagen import File
 from mutagen.id3 import ID3, TIT2
 import soundfile as sf
+from pathlib import Path
 import librosa
 import logging
+
+import json
+from json import JSONDecodeError
+
+def read_transcription_data(file_path):
+    """
+    Read transcription data from a JSON file.
+
+    Args:
+    file_path (str): Path to the audio file. The function constructs the path to the corresponding JSON file by replacing the audio file extension with '.json'.
+
+    Returns:
+    list: A list of transcription data segments. Returns an empty list if the file does not exist or in case of an error.
+    """
+
+    try:
+        file_path = Path(file_path)
+        transcription_file = file_path.with_stem(file_path.stem + '_segments_data').with_suffix('.json')
+        if transcription_file.exists():
+            with open(transcription_file, 'r') as f:
+                return json.load(f)
+        else:
+            logging.warning(f"Transcription file {transcription_file} does not exist.")
+        return []
+    except JSONDecodeError as e:
+        logging.error(f"Error decoding JSON from {transcription_file}: {e}")
+        return []
+    except Exception as e:
+        logging.error(f"Unexpected error while reading {transcription_file}: {e}")
+        return []
 
 def parse_timestamp_from_title(title):
     try:
