@@ -25,7 +25,8 @@ Create a virtual env and activate it:
 ```bash
 python -m venv env
 source env/bin/activate # For linux users
-.\env\Script\activate # For windows users
+.\env\Script\activate # For cmd windows users
+.\env\Script\Activate.ps1 # For powershell windows users
 ```
 
 ### Dependencies
@@ -52,3 +53,16 @@ saving_folder
 ---- audio_2.mp3 
 ---- audio_2_transcription.txt
 ```
+
+After generating all the transcriptions for your audios, you can clean them with :
+```bash
+python .\audio_processing_script.py --source_folder "path/to/folder/with/transcriptions" --dest_folder "path/to/saving/folder/" 
+```
+
+This script will :
+- Identify the merged files
+- Segment these files into different audios
+- Transcribe these new audios
+- Identify files belonging to the same conversation
+- Merge these files
+- Transcribe these merged files
