@@ -1,7 +1,6 @@
 from FasterWhisperTranscription import FasterWhisperTranscription
 from pathlib import Path
 from mutagen.mp3 import MP3
-
 import json
 import time
 import shutil
@@ -36,8 +35,7 @@ def get_audio_duration_from_metadata(audio_path):
     duration = audio.info.length
     return duration
 
-def process_audio_files(folder_path, new_folder):
-    print(folder_path, new_folder)
+def process_audio_files(folder_path, new_folder, move):
     folder_path = Path(folder_path)
     new_folder = Path(new_folder)
     total_audio_duration = 0
@@ -62,7 +60,7 @@ def process_audio_files(folder_path, new_folder):
 
 
         # Move the audio file to the new folder
-        if args.move:
+        if move:
             shutil.move(str(audio_path), str(new_folder_path / audio_path.name))
         else:
             shutil.copy(str(audio_path), str(new_folder_path / audio_path.name))
@@ -81,17 +79,18 @@ def process_audio_files(folder_path, new_folder):
     return total_audio_duration
 
 
-# Parse command line arguments
-parser = argparse.ArgumentParser(description="Process audio files in a specified folder.")
-parser.add_argument("--source_folder", type=str, help="Path to the folder containing audio files")
-parser.add_argument("--dest_folder", type=str, help="Path to the folder where audio files will be saved along their transcription")
-parser.add_argument("--move", action="store_true" , default=False, help="Move original mp3 file instead of copying it")
-args = parser.parse_args()
+if __name__ == "__main__":
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Process audio files in a specified folder.")
+    parser.add_argument("--source_folder", type=str, help="Path to the folder containing audio files")
+    parser.add_argument("--dest_folder", type=str, help="Path to the folder where audio files will be saved along their transcription")
+    parser.add_argument("--move", action="store_true", default=False, help="Move original mp3 file instead of copying it")
+    args = parser.parse_args()
 
-start_time = time.time()
-total_audio_duration = process_audio_files(args.source_folder, args.dest_folder)
-total_end_time = time.time()
-total_running_time = total_end_time - start_time
-percentage = (total_running_time / total_audio_duration) * 100
+    start_time = time.time()
+    total_audio_duration = process_audio_files(args.source_folder, args.dest_folder, args.move)
+    total_end_time = time.time()
+    total_running_time = total_end_time - start_time
+    percentage = (total_running_time / total_audio_duration) * 100
 
-print(f"Total Running Time: {total_running_time:.2f} seconds or {percentage:.2f}% of total audio duration")
+    print(f"Total Running Time: {total_running_time:.2f} seconds or {percentage:.2f}% of total audio duration")
