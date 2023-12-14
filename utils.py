@@ -1,29 +1,21 @@
 from datetime import datetime
-import numpy as np
-from mutagen import File
-from mutagen.id3 import ID3, TIT2
-import soundfile as sf
-from pathlib import Path
-import librosa
 import logging
-
 import json
 from json import JSONDecodeError
+import re 
 
-def read_transcription_data(file_path):
+def read_transcription_data(transcription_file):
     """
     Read transcription data from a JSON file.
 
     Args:
-    file_path (str): Path to the audio file. The function constructs the path to the corresponding JSON file by replacing the audio file extension with '.json'.
+    transcription_file (Path): Path to the audio file. The function constructs the path to the corresponding JSON file by replacing the audio file extension with '.json'.
 
     Returns:
     list: A list of transcription data segments. Returns an empty list if the file does not exist or in case of an error.
     """
 
     try:
-        file_path = Path(file_path)
-        transcription_file = file_path.with_stem(file_path.stem + '_segments_data').with_suffix('.json')
         if transcription_file.exists():
             with open(transcription_file, 'r') as f:
                 return json.load(f)
@@ -45,6 +37,20 @@ def parse_timestamp_from_title(title):
         return start_timestamp, end_timestamp
     except (IndexError, ValueError):
         return None, None
+    
+def format_filename(timestamp, original_stem):
+    file_name_components = [
+        str(timestamp.year),
+        str(timestamp.month),
+        str(timestamp.day),
+        str(timestamp.hour),
+        str(timestamp.minute),
+        str(timestamp.second),
+        original_stem.split('_')[-1]
+    ]
+    file_name = '_'.join(file_name_components)
+
+    return f"{file_name}.mp3"
 
 def check_words_in_transcription(transcription_path, words):
     try:
@@ -53,48 +59,17 @@ def check_words_in_transcription(transcription_path, words):
             return [word for word in words if word in transcription]
     except FileNotFoundError:
         return []
-    
 
-def load_audio(file_path, **kwargs):
-    try:
-        return librosa.load(file_path, **kwargs)
-    except Exception as e:
-        logging.error(f"Error loading audio file {file_path}: {e}")
-        return None, None
-    
-def save_audio_segment(segment_file_path, audio_segment, sr):
-    try:
-        sf.write(segment_file_path, audio_segment, sr)
-    except Exception as e:
-        logging.error(f"Error saving audio segment to {segment_file_path}: {e}")
+def check_word_in_timeframe(transcription_data, words, start_time, end_time, is_end_segment=False):
+    for segment in transcription_data:
+        segment_text = segment['text'].lower()
 
-def copy_metadata(src_file, dst_file, new_title=None):
-    """ Copy metadata from src_file to dst_file """
-    src_tags = File(src_file)
-    dst_tags = ID3()
+        if is_end_segment:
+            segment_time = segment['end']
+        else:
+            segment_time = segment['start']
 
-    for key, value in src_tags.items():
-        dst_tags.add(value)
-
-    if new_title:
-        dst_tags.add(TIT2(encoding=3, text=new_title))
-
-    dst_tags.save(dst_file)
-
-def merge_audios(audio_files):
-    """ Merge audio files """
-    merged_audio = []
-    sr = None
-
-    for file in audio_files:
-        audio, file_sr = load_audio(file)
-        if sr is None:
-            sr = file_sr
-        elif sr != file_sr:
-            raise ValueError("Sample rates of the audio files must match")
-        merged_audio.append(audio)
-
-    # Concatenate all audio files
-    merged_audio = np.concatenate(merged_audio)
-
-    return merged_audio, sr
+        if start_time <= segment_time <= end_time:
+            if any(re.search(r'\b' + re.escape(word) + r'\b', segment_text) for word in words):
+                return True
+    return False
