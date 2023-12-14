@@ -206,80 +206,63 @@ def create_audio_database(audio_files):
 ### FIND ASSOCIATED FILES AND MERGE SEPARATE CONVERSATIONS ###
 def find_associated_files(df, time_delta=20):
     """
-    Identify groups of audio files that are associated based on their timestamps and status.
-    Handles various scenarios including missing start files.
+    Identify groups of audio files that form complete conversations based on their labels, timestamps, and time delta.
 
     Args:
-    df (pandas.DataFrame): DataFrame with audio file metadata.
+    df (pandas.DataFrame): DataFrame with audio file metadata, including labels and timestamps.
     time_delta (int): Maximum time difference in seconds to consider files associated.
 
     Returns:
-    list of tuples: Each tuple contains paths of associated audio files.
+    list of tuples: Each tuple contains paths of associated audio files forming a conversation.
     """
+    # Sort DataFrame by timestamps
+    df_sorted = df.sort_values(by=['Start Timestamp']).reset_index(drop=True)
+
     associated_files = []
-    
-    # Filtering based on file types
-    start_files = df[df['Is Start File']]
-    other_files = df[~df['Is End File'] & ~df['Is Start File'] & ~df['Is Complete']]
-    end_files = df[df['Is End File']]
-    
-    # Define a function to get the last part of the filename (to match files)
-    def get_file_identifier(row):
-        return row.iloc[0].split('_')[-1]
-    
-    # Function to find matching files in a target group
-    def find_matching_file(source_row, target_df):
-        for _, target_row in target_df.iterrows():
-            if get_file_identifier(source_row) != get_file_identifier(target_row):
-                continue
-            if pd.isnull(target_row['Start Timestamp']):
-                continue
+    current_group = []
 
-            time_diff = (target_row['Start Timestamp'] - source_row['End Timestamp']).total_seconds()
-            if 0 <= time_diff <= time_delta:
-                return target_row
-        return None
-    
-    # Iterate through each file type and find associations
-    for _, start_row in start_files.iterrows():
-        associated_group = [start_row['File Path']]
-        current_row = start_row
+    def time_diff_okay(current_end, next_start):
+        return 0 <= (next_start - current_end).total_seconds() <= time_delta
 
-        # Check other_files and end_files for associations
-        while True:
-            next_row = find_matching_file(current_row, other_files)
-            if next_row is not None:
-                associated_group.append(next_row['File Path'])
-                current_row = next_row
-                continue  # Look for more other_files
+    for index, row in df_sorted.iterrows():
+        file_path = row['File Path']
+        label = None
+        if row['Is Start File']:
+            label = 'start'
+        elif row['Is End File']:
+            label = 'end'
+        elif row['Is Complete']:
+            continue  # Complete files do not need to be grouped
+        else:
+            label = 'other'
 
-            # If no more other_files, look for an end_file
-            next_row = find_matching_file(current_row, end_files)
-            if next_row is not None:
-                associated_group.append(next_row['File Path'])
-            
-            break  # No more files to associate
+        if label == 'start':
+            # If a new start is found, save the previous group and start a new one
+            if current_group:
+                associated_files.append(tuple(current_group))
+            current_group = [file_path]
+        elif label == 'end':
+            # End file - add to the current group and close the group
+            current_group.append(file_path)
+            associated_files.append(tuple(current_group))
+            current_group = []
+        else:  # label == 'other'
+            # Other files - add to the current group if within time delta
+            if current_group:
+                last_index = df_sorted.index[df_sorted['File Path'] == current_group[-1]].tolist()[0]
+                last_row = df_sorted.iloc[last_index]
+                if time_diff_okay(last_row['End Timestamp'], row['Start Timestamp']):
+                    current_group.append(file_path)
+                else:
+                    associated_files.append(tuple(current_group))
+                    current_group = [file_path]
+            else:
+                current_group.append(file_path)
 
-        associated_files.append(tuple(associated_group))
+    # Add the last group if not empty
+    if current_group:
+        associated_files.append(tuple(current_group))
 
-    # Handle cases where there is no start file
-    for _, other_row in other_files.iterrows():
-        if not any(other_row['File Path'] in group for group in associated_files):
-            associated_group = [other_row['File Path']]
-            current_row = other_row
-
-            # Look for an end_file association
-            next_row = find_matching_file(current_row, end_files)
-            if next_row is not None:
-                associated_group.append(next_row['File Path'])
-
-            associated_files.append(tuple(associated_group))
-
-    for _, end_row in end_files.iterrows():
-        if not any(end_row['File Path'] in group for group in associated_files):
-            associated_files.append((end_row['File Path'],))
-
-    logging.info(f"Found {len(associated_files)} splited conversations to remerge")
     return associated_files
 
 def merge_associated_files(associated_files, df, dest_folder):
@@ -324,14 +307,15 @@ def merge_associated_files(associated_files, df, dest_folder):
         new_title = f"{start_timestamp} - {end_timestamp}"
         copy_metadata(group[0], fused_file_path, new_title)
 
-        # Delete old transcription folder
+    # Delete old transcription folder
+    for group in associated_files:
         for file_path in group:
             shutil.rmtree(Path(file_path).parent)
 
 def main(args):
-    identify_and_split_merged_files(args.source_folder, args.dest_folder)
+    # identify_and_split_merged_files(args.source_folder, args.dest_folder)
 
-    process_audio_files(args.dest_folder, args.dest_folder, move=True)
+    # process_audio_files(args.dest_folder, args.dest_folder, move=True)
 
     audio_files = [audio_file for audio_file in Path(args.dest_folder).rglob('*.mp3') ]
     df_audio = create_audio_database(audio_files)
