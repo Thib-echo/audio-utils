@@ -27,12 +27,13 @@ def get_audio_duration_from_metadata(audio_path):
     # Check file extension and use appropriate Mutagen class
     file_extension = audio_file.suffix.lower()
     if file_extension == '.mp3':
-        audio = MP3(audio_file)
+        audio = MP3(audio_file)  # Open the MP3 file
+        duration = audio.info.length
+        # No explicit close method, but we can delete the object to free up resources
+        del audio
     else:
         raise NotImplementedError(f"Metadata retrieval for {file_extension} files is not implemented.")
 
-    # Retrieve duration
-    duration = audio.info.length
     return duration
 
 def process_audio_files(folder_path, new_folder, move):
