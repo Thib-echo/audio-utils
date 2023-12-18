@@ -46,5 +46,5 @@ class FasterWhisperTranscription:
 
     def transcribe(self):
         print(f"Starting transcription for FasterWhisper-{self.model_size}")
-        segments, _ = self.model.transcribe(self.audio_path, beam_size=5, vad_filter=True, word_timestamps=True)
+        segments, _ = self.model.transcribe(self.audio_path, beam_size=5, vad_filter=True, word_timestamps=True, initial_prompt="Le texte suivant est une conversation entre un médecin de SOS Médecin et un patient.")
         return self.format_faster_whisper_output(segments)
