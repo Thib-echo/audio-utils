@@ -159,6 +159,7 @@ def create_audio_database(audio_files):
     Returns:
     pandas.DataFrame: A DataFrame containing metadata and transcription data for each audio file.
     """
+    audio_files = [audio_file for audio_file in Path(args.dest_folder).rglob('*.mp3') ]    
     data = []
 
     for audio_file in audio_files:
@@ -313,16 +314,26 @@ def merge_associated_files(associated_files, df, dest_folder):
             shutil.rmtree(Path(file_path).parent)
 
 def main(args):
-    # identify_and_split_merged_files(args.source_folder, args.dest_folder)
 
-    # process_audio_files(args.dest_folder, args.dest_folder, move=True)
+    # 1. Initial transcription of raw_audio into raw_transcriptions
+    process_audio_files(args.source_folder, args.dest_folder)
 
-    audio_files = [audio_file for audio_file in Path(args.dest_folder).rglob('*.mp3') ]
-    df_audio = create_audio_database(audio_files)
+    # 2. Identifying and splitting merged files
+    identify_and_split_merged_files(args.dest_folder, args.dest_folder)
+
+    # 3. Transcriptions of newly created audio files
+    process_audio_files(args.dest_folder, args.dest_folder, move=True)
+
+    # 4. Creation of the dataframe and labelling of the audios (beginning of file, end, complete file or other)    
+    df_audio = create_audio_database(args.dest_folder)
+
+    # 5. Find associated audio files
     associated_files = find_associated_files(df_audio)
-    print(associated_files)
+
+    # 6. Merge of associated files
     merge_associated_files(associated_files, df_audio, args.dest_folder)
 
+    # 7. Final transcriptions of newly created audio files
     process_audio_files(args.dest_folder, args.dest_folder, move=True)
 
 if __name__ == '__main__':
