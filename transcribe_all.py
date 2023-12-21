@@ -41,16 +41,26 @@ def process_audio_files(folder_path, new_folder, move):
     total_audio_duration = 0
 
     for audio_path in folder_path.glob('*.mp3'):  # Repeat for other formats as needed
-
-        # Create a new folder for the audio and its transcript
-        try:
-            new_folder_path = new_folder / audio_path.stem
-            new_folder_path.mkdir(parents=True)
-        except FileExistsError as e:
-            print("Folder found, no processing needed, continuing ...")
-            continue
-        
         print(f"Processing {audio_path}")
+
+        new_folder_path = new_folder / audio_path.stem
+
+        # Check if output folder is already created and its sanity
+        transcript_file_path = new_folder_path / (audio_path.stem + "_transcription.txt")
+        transcript_json_path = new_folder_path / (audio_path.stem + "_segments_data.json")
+        if new_folder_path.exists() and all([
+            new_folder_path.joinpath(audio_path.name).exists(),
+            transcript_file_path.exists(),
+            transcript_json_path.exists()
+        ]):
+            print("Folder already created and sane, no processing needed, continuing ...")
+            continue
+
+        # If the folder exists but is not sane, delete it
+        if new_folder_path.exists():
+            print("Folder already created but corrupted, deletion and start a new transcription ...")
+            shutil.rmtree(new_folder_path)
+
         audio_duration = get_audio_duration_from_metadata(audio_path)
         total_audio_duration += audio_duration
 
@@ -58,19 +68,20 @@ def process_audio_files(folder_path, new_folder, move):
         faster_whisper = FasterWhisperTranscription(str(audio_path), "large-v3")
         transcription_fw, segments_data, _ = transcribe_and_time(faster_whisper, audio_duration)
 
+        # Create a new folder for the audio and its transcript
+        new_folder_path.mkdir(parents=True)
 
         # Move the audio file to the new folder
+        destination = str(new_folder_path / audio_path.name)
         if move:
-            shutil.move(str(audio_path), str(new_folder_path / audio_path.name))
+            shutil.move(str(audio_path), destination)
         else:
-            shutil.copy(str(audio_path), str(new_folder_path / audio_path.name))
+            shutil.copy(str(audio_path), destination)
 
         # Write the transcript to a text file in the new folder
-        transcript_file_path = new_folder_path / (audio_path.stem + "_transcription.txt")
         with open(transcript_file_path, "w", encoding="utf-8") as transcript_file:
             transcript_file.write(transcription_fw)
 
-        transcript_json_path = new_folder_path / (audio_path.stem + "_segments_data.json")
         with open(transcript_json_path, "w", encoding="utf-8") as transcript_json:
             json.dump(segments_data, transcript_json, indent=4, ensure_ascii=False)
 
