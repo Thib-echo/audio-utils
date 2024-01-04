@@ -55,8 +55,9 @@ def debug_audio_files(file_path):
         print(f"Error processing {file}: {e.stderr}")
 
 def process_audio_files(folder_path, new_folder, move):
-    folder_path = Path(folder_path)
-    new_folder = Path(new_folder)
+    folder_path = folder_path if isinstance(folder_path, Path) else Path(folder_path)
+    new_folder = new_folder if isinstance(new_folder, Path) else Path(new_folder)
+
     total_audio_duration = 0
 
     audio_files = list(folder_path.glob('*.mp3'))

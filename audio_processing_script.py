@@ -25,11 +25,11 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Placeholder for argument parsing
 parser = argparse.ArgumentParser(description='Audio Processing and Transcription Analysis Script')
 parser.add_argument("--source_folder", type=str, help="Path to the folder containing audio files and transcription")
-parser.add_argument("--dest_folder", type=str, help="Path to the folder where processed audio files will be saved along their transcription")
+# parser.add_argument("--dest_folder", type=str, help="Path to the folder where processed audio files will be saved along their transcription")
 
 
 ### IDENTIFY AND SPLIT MERGED FILES ###
-def identify_and_split_merged_files(source_folder_path, dest_folder_path, gap_threshold=15, start_word_cooldown=15, split_type='mp3'):
+def identify_and_split_merged_files(transcription_folder, processed_folder, gap_threshold=15, start_word_cooldown=15, split_type='mp3'):
     """
     Process audio files by identifying merged files, splitting them, and copying to new location.
 
@@ -40,10 +40,7 @@ def identify_and_split_merged_files(source_folder_path, dest_folder_path, gap_th
     start_word_cooldown (int): Cooldown time to identify start of a new conversation.
     """ 
 
-    source_folder_path = Path(source_folder_path)
-    dest_folder_path = Path(dest_folder_path)
-
-    for audio_segments_data in source_folder_path.rglob('*.json'):
+    for audio_segments_data in transcription_folder.rglob('*.json'):
         transcription_data = read_transcription_data(audio_segments_data)
         is_merged, merged_details = check_if_merged(transcription_data, gap_threshold, start_word_cooldown)
         
@@ -51,10 +48,9 @@ def identify_and_split_merged_files(source_folder_path, dest_folder_path, gap_th
 
         if is_merged:
             logging.info(f"File {file.stem} detected as merged, will be splitted in {len(merged_details) + 1} segments")
-            split_merged_file(file, transcription_data, merged_details, dest_folder_path, split_type)
+            split_merged_file(file, transcription_data, merged_details, processed_folder, split_type)
         else:
-            pass
-            # shutil.copytree(audio_segments_data.parent, dest_folder_path / audio_segments_data.parent.name, dirs_exist_ok=True)
+            shutil.copytree(audio_segments_data.parent, processed_folder / audio_segments_data.parent.name, dirs_exist_ok=True)
             
 def check_if_merged(transcription_data, gap_threshold, start_word_cooldown):
     last_end_conversation_time = None
@@ -459,7 +455,7 @@ def merge_associated_files(associated_files, df, dest_folder, split_type):
             merged_text = concatenate_texts(text_files)
             merged_json = merge_jsons(json_files)
 
-            merged_folder = Path(dest_folder)  / 'TEST' / '_'.join(text_files[0].name.split('_')[:-1]) 
+            merged_folder = Path(dest_folder) / '_'.join(text_files[0].name.split('_')[:-1]) 
             merged_folder.mkdir(exist_ok=True, parents=True)
 
             merged_text_path = merged_folder / text_files[0].name
@@ -475,28 +471,32 @@ def merge_associated_files(associated_files, df, dest_folder, split_type):
             shutil.rmtree(Path(file_path).parent)
 
 def main(args):
+    source_folder = Path(args.source_folder)
+    transcription_folder = source_folder.parent / "raw_transcriptions"
+    processed_folder = source_folder.parent / "processed_files"
+
     split_type = 'txt'
 
     # 1. Initial transcription of raw_audio into raw_transcriptions
-    # process_audio_files(args.source_folder, args.dest_folder, move=False)
+    process_audio_files(source_folder, transcription_folder, move=False)
 
     # 2. Identifying and splitting merged files
-    identify_and_split_merged_files(args.source_folder, args.dest_folder, split_type=split_type)
+    identify_and_split_merged_files(transcription_folder, processed_folder, split_type=split_type)
 
     # 3. Transcriptions of newly created audio files
-    # process_audio_files(args.dest_folder, args.dest_folder, move=True)
+    # process_audio_files(processed_folder, processed_folder, move=True)
 
     # 4. Creation of the dataframe and labelling of the audios (beginning of file, end, complete file or other)    
-    df_audio = create_audio_database(args.dest_folder, split_type=split_type)
+    df_audio = create_audio_database(processed_folder, split_type=split_type)
 
     # 5. Find associated audio files
     associated_files = find_associated_files(df_audio)
 
     # 6. Merge of associated files
-    merge_associated_files(associated_files, df_audio, args.dest_folder, split_type=split_type)
+    merge_associated_files(associated_files, df_audio, processed_folder, split_type=split_type)
 
     # # 7. Final transcriptions of newly created audio files
-    # process_audio_files(args.dest_folder, args.dest_folder, move=True)
+    # process_audio_files(processed_folder, processed_folder, move=True)
 
 if __name__ == '__main__':
     args = parser.parse_args()
