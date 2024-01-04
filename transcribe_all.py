@@ -104,7 +104,7 @@ def process_audio_files(folder_path, new_folder, move):
         if move:
             shutil.move(str(audio_path), str(new_folder_path / audio_path.name))
         else:
-            shutil.copy(str(audio_path), destination)
+            shutil.copy(str(audio_path), str(new_folder_path / audio_path.name))
 
         # Write the transcript to a text file in the new folder
         with open(transcript_file_path, "w", encoding="utf-8") as transcript_file:
