@@ -1,3 +1,5 @@
 __pycache__/
 audio_regrouping/
 env/
+ffmpeg.exe
+ffprobe.exe

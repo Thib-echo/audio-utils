@@ -159,6 +159,7 @@ def create_audio_database(audio_files):
     Returns:
     pandas.DataFrame: A DataFrame containing metadata and transcription data for each audio file.
     """
+    audio_files = [audio_file for audio_file in Path(args.dest_folder).rglob('*.mp3') ]    
     data = []
 
     for audio_file in audio_files:
@@ -220,16 +221,12 @@ def find_associated_files(df, time_delta=20):
 
     associated_files = []
     current_group = []
-    grouped_files = set()
 
     def time_diff_okay(current_end, next_start):
         return 0 <= (next_start - current_end).total_seconds() <= time_delta
 
     for index, row in df_sorted.iterrows():
         file_path = row['File Path']
-        if file_path in grouped_files:
-            continue
-
         label = None
         if row['Is Start File']:
             label = 'start'
@@ -245,12 +242,10 @@ def find_associated_files(df, time_delta=20):
             if current_group:
                 associated_files.append(tuple(current_group))
             current_group = [file_path]
-            grouped_files.add(file_path)
         elif label == 'end':
             # End file - add to the current group and close the group
             current_group.append(file_path)
             associated_files.append(tuple(current_group))
-            grouped_files.update(current_group)
             current_group = []
         else:  # label == 'other'
             # Other files - add to the current group if within time delta
@@ -259,21 +254,18 @@ def find_associated_files(df, time_delta=20):
                 last_row = df_sorted.iloc[last_index]
                 if time_diff_okay(last_row['End Timestamp'], row['Start Timestamp']):
                     current_group.append(file_path)
-                    grouped_files.add(file_path)
                 else:
                     associated_files.append(tuple(current_group))
                     current_group = [file_path]
-                    grouped_files.add(file_path)
             else:
                 current_group.append(file_path)
-                grouped_files.add(file_path)
 
     # Add the last group if not empty
     if current_group:
         associated_files.append(tuple(current_group))
 
     return associated_files
-    
+
 def merge_associated_files(associated_files, df, dest_folder):
     """
     Merge associated audio files and save it on the raw_audio_folder
@@ -322,16 +314,26 @@ def merge_associated_files(associated_files, df, dest_folder):
             shutil.rmtree(Path(file_path).parent)
 
 def main(args):
-    identify_and_split_merged_files(args.source_folder, args.dest_folder)
 
+    # 1. Initial transcription of raw_audio into raw_transcriptions
+    process_audio_files(args.source_folder, args.dest_folder)
+
+    # 2. Identifying and splitting merged files
+    identify_and_split_merged_files(args.dest_folder, args.dest_folder)
+
+    # 3. Transcriptions of newly created audio files
     process_audio_files(args.dest_folder, args.dest_folder, move=True)
 
-    audio_files = [audio_file for audio_file in Path(args.dest_folder).rglob('*.mp3') ]
-    df_audio = create_audio_database(audio_files)
+    # 4. Creation of the dataframe and labelling of the audios (beginning of file, end, complete file or other)    
+    df_audio = create_audio_database(args.dest_folder)
+
+    # 5. Find associated audio files
     associated_files = find_associated_files(df_audio)
-    print(associated_files)
+
+    # 6. Merge of associated files
     merge_associated_files(associated_files, df_audio, args.dest_folder)
 
+    # 7. Final transcriptions of newly created audio files
     process_audio_files(args.dest_folder, args.dest_folder, move=True)
 
 if __name__ == '__main__':
