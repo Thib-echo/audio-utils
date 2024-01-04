@@ -15,19 +15,25 @@ def read_transcription_data(transcription_file):
     list: A list of transcription data segments. Returns an empty list if the file does not exist or in case of an error.
     """
 
+    encodings = ['utf-8', 'ISO-8859-1', 'windows-1252']  # List of encodings to try
+
     try:
         if transcription_file.exists():
-            with open(transcription_file, 'r') as f:
-                return json.load(f)
+            for encoding in encodings:
+                try:
+                    with open(transcription_file, 'r', encoding=encoding) as f:
+                        return json.load(f)
+                except UnicodeDecodeError:
+                    continue  # If this encoding fails, try the next one
+            logging.error(f"Could not decode {transcription_file} with any known encoding.")
         else:
             logging.warning(f"Transcription file {transcription_file} does not exist.")
-        return []
     except JSONDecodeError as e:
         logging.error(f"Error decoding JSON from {transcription_file}: {e}")
-        return []
     except Exception as e:
         logging.error(f"Unexpected error while reading {transcription_file}: {e}")
-        return []
+
+    return []
 
 def parse_timestamp_from_title(title):
     try:
@@ -38,7 +44,7 @@ def parse_timestamp_from_title(title):
     except (IndexError, ValueError):
         return None, None
     
-def format_filename(timestamp, original_stem):
+def format_filename(timestamp, file_path):
     file_name_components = [
         str(timestamp.year),
         str(timestamp.month),
@@ -46,11 +52,23 @@ def format_filename(timestamp, original_stem):
         str(timestamp.hour),
         str(timestamp.minute),
         str(timestamp.second),
-        original_stem.split('_')[-1]
+        file_path.stem.split('_')[-1]
     ]
     file_name = '_'.join(file_name_components)
 
-    return f"{file_name}.mp3"
+    return f"{file_name}{file_path.suffix}"
+
+def parse_timestamp_from_filename(filename):
+    # Parse the start timestamp from the file name
+    file_name_pattern = r"(\d+)_(\d+)_(\d+)_(\d+)_(\d+)_(\d+)"
+    match = re.match(file_name_pattern, filename.stem)
+    if match:
+        year, month, day, hour, minute, second = map(int, match.groups())
+        timestamp = datetime(year, month, day, hour, minute, second)
+    else:
+        raise ValueError("File name does not match expected pattern")
+
+    return timestamp
 
 def check_words_in_transcription(transcription_path, words):
     try:
@@ -73,3 +91,4 @@ def check_word_in_timeframe(transcription_data, words, start_time, end_time, is_
             if any(re.search(r'\b' + re.escape(word) + r'\b', segment_text) for word in words):
                 return True
     return False
+

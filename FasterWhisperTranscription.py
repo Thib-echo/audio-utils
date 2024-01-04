@@ -6,7 +6,7 @@ class FasterWhisperTranscription:
     @classmethod
     def load_model(cls, model_size):
         if cls.model is None:
-            cls.model = WhisperModel(model_size, device="cuda", compute_type="int8")
+            cls.model = WhisperModel(model_size, device="cuda", compute_type="float16")
 
     def __init__(self, audio_path, model_size):
         self.audio_path = audio_path
@@ -46,5 +46,5 @@ class FasterWhisperTranscription:
 
     def transcribe(self):
         print(f"Starting transcription for FasterWhisper-{self.model_size}")
-        segments, _ = self.model.transcribe(self.audio_path, beam_size=5, vad_filter=True, word_timestamps=True, initial_prompt="Le texte suivant est une conversation entre un médecin de SOS Médecin et un patient.")
+        segments, _ = self.model.transcribe(self.audio_path, beam_size=5, vad_filter=True, word_timestamps=True, temperature=0, initial_prompt="Le texte suivant est une conversation entre un médecin de SOS Médecin et un patient.")
         return self.format_faster_whisper_output(segments)

@@ -5,6 +5,9 @@ import json
 import time
 import shutil
 import argparse
+import subprocess
+from multiprocessing import Pool
+
 
 def transcribe_and_time(transcription_service, audio_duration):
     start_time = time.time()
@@ -36,10 +39,31 @@ def get_audio_duration_from_metadata(audio_path):
 
     return duration
 
+def debug_audio_files(file_path):
+    folder_path = file_path.parent
+    file = file_path.name
+    output_file = folder_path / f"processed_{file}"
+
+    command = f'ffmpeg -i "{file_path}" -vn -ar 16000 -c:a libmp3lame -y "{output_file}"'
+
+    try:
+        subprocess.run(command, capture_output=True, check=True, text=True)
+        file_path.unlink()  # Remove the original file
+        output_file.rename(file_path)  # Rename the processed file to the original file's name
+        print(f"ffmpeg runned on: {file}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error processing {file}: {e.stderr}")
+
 def process_audio_files(folder_path, new_folder, move):
     folder_path = Path(folder_path)
     new_folder = Path(new_folder)
     total_audio_duration = 0
+
+    audio_files = list(folder_path.glob('*.mp3'))
+
+    with Pool() as pool:
+        pool.map(debug_audio_files, audio_files)
+
 
     for audio_path in folder_path.glob('*.mp3'):  # Repeat for other formats as needed
         print(f"Processing {audio_path}")
@@ -57,20 +81,24 @@ def process_audio_files(folder_path, new_folder, move):
             print("Folder already created and sane, no processing needed, continuing ...")
             continue
 
+
+
         # If the folder exists but is not sane, delete it
         if new_folder_path.exists():
-            print("Folder already created but corrupted, deletion and start a new transcription ...")
-            shutil.rmtree(new_folder_path)
+            # print("Folder already created but corrupted, deletion and start a new transcription ...")
+            # shutil.rmtree(new_folder_path)
 
+            # Create a new folder for the audio and its transcript
+            continue
+
+        new_folder_path.mkdir(parents=True)
+        
         audio_duration = get_audio_duration_from_metadata(audio_path)
         total_audio_duration += audio_duration
 
         # Transcribe the audio file
         faster_whisper = FasterWhisperTranscription(str(audio_path), "large-v3")
         transcription_fw, segments_data, _ = transcribe_and_time(faster_whisper, audio_duration)
-
-        # Create a new folder for the audio and its transcript
-        new_folder_path.mkdir(parents=True)
 
         # Move the audio file to the new folder
         if move:
