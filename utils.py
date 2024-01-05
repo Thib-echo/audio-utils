@@ -3,6 +3,8 @@ import logging
 import json
 from json import JSONDecodeError
 import re 
+from pathlib import Path
+import shutil
 
 def read_transcription_data(transcription_file):
     """
@@ -92,3 +94,26 @@ def check_word_in_timeframe(transcription_data, words, start_time, end_time, is_
                 return True
     return False
 
+def clean_processed_files(directory):
+    base_path = Path(directory)
+
+    for subdir in base_path.iterdir():
+        if subdir.is_dir():
+            txt_file_path = subdir / f'{subdir.name}_transcription.txt'
+            json_file_path = subdir / f'{subdir.name}_segments_data.json'
+
+            # Check if txt file is empty
+            if txt_file_path.stat().st_size == 0:
+                shutil.rmtree(subdir)
+                print(f"Deleted {subdir} as txt file is empty.")
+                continue
+
+            # Try reading the json file and handle UnicodeDecodeError
+            try:
+                with open(json_file_path, 'r', encoding='utf-8') as json_file:
+                    json.load(json_file)
+            except UnicodeDecodeError:
+                shutil.rmtree(subdir)
+                print(f"Deleted {subdir} due to UnicodeDecodeError in json file.")
+            except JSONDecodeError:
+                print(f"JSONDecodeError in {json_file_path}, but not deleting the directory.")
