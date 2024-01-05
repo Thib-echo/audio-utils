@@ -396,7 +396,7 @@ def merge_jsons(json_files):
     merged_json = []
     current_id = 1
     for file_path in json_files:
-        with open(file_path, 'r') as file:
+        with open(file_path, 'r', encoding="utf-8") as file:
             data = json.load(file)
             for segment in data:
                 segment['id'] = current_id
@@ -478,13 +478,16 @@ def main(args):
     split_type = 'txt'
 
     # 1. Initial transcription of raw_audio into raw_transcriptions
-    process_audio_files(source_folder, transcription_folder, move=False)
+    # process_audio_files(source_folder, transcription_folder, move=False)
 
     # 2. Identifying and splitting merged files
     identify_and_split_merged_files(transcription_folder, processed_folder, split_type=split_type)
 
+    clean_processed_files(processed_folder)
+    
     # 3. Transcriptions of newly created audio files
     # process_audio_files(processed_folder, processed_folder, move=True)
+    
 
     # 4. Creation of the dataframe and labelling of the audios (beginning of file, end, complete file or other)    
     df_audio = create_audio_database(processed_folder, split_type=split_type)
